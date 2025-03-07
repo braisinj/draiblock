@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Browsing Test Site</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            text-align: center;
+            color: #333;
+        }
+        header {
+            background-color: #007BFF;
+            padding: 20px 0;
+            color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 2rem;
+        }
+        p {
+            margin: 20px 0;
+            font-size: 1.1rem;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            margin: 15px 0;
+        }
+        a {
+            display: inline-block;
+            padding: 10px 20px;
+            color: #ffffff;
+            background-color: #007BFF;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+        a:hover {
+            background-color: #0056b3;
+            text-decoration: none;
+        }
+        footer {
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #333;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Welcome to the Safe Browsing Test Site</h1>
+    </header>
+    <main>
+        <p>This site is designed to help you understand how browsers handle phishing and malware threats.</p>
+        <ul>
+            <li><a href="https://testsafebrowsing.appspot.com/s/phishing.html">Phishing Test Page</a></li>
+            <li><a href="https://testsafebrowsing.appspot.com/s/malware.html">Malware Test Page</a></li>
+            <li><a href="https://testsafebrowsing.appspot.com/s/malware_in_iframe.html">Malware in iFrame Test Page</a></li>
+        </ul>
+        <h1>Test Ethereum Address Detection</h1>
+        <p>This page contains a fake Ethereum address:</p>
+        <p>0x880693f6fa17395914a9c6f280f6af6eec6ea195</p>
+    </main>ù
+    <footer>
+        &copy; 2025 Safe Browsing Test Site. All rights reserved.
+    </footer>
+</body>
+</html>
+
+
+
+// background.js with Ethereum Address Extraction
+console.log("🚀 Safe Browsing Guard Active");
+
+chrome.runtime.sendMessage({
+    action: "blockedSites",
+    url: "https://www.malware.site"
+});
+
+// Load protection setting
+chrome.storage.local.get("protectionEnabled", (data) => {
+    if (data.protectionEnabled === false) {
+        console.log("🔕 The Protection is DISABLED.");
+    } else {
+        console.log("🛡️ The Protection is ENABLED.");
+    }
+});
+
+// Initialize badge count on startup
+chrome.storage.local.get("blockedCount", (data) => {
+    let count = data.blockedCount || 0;
+    chrome.action.setBadgeText({ text: count > 0 ? count.toString() : "" });
+    chrome.action.setBadgeBackgroundColor({ color: "#FF0000" });
+});
+
+// Function to update the badge count
+function updateBadgeCount() {
+    chrome.storage.local.get("blockedCount", (data) => {
+        let count = (data.blockedCount || 0) + 1;
+        chrome.storage.local.set({ blockedCount: count }, () => {
+            chrome.action.setBadgeText({ text: count > 0 ? count.toString() : "" });
+        });
+    });
+}
+
+// Function to check if a URL is a threat
+async function checkURL(url) {
+    try {
+        chrome.storage.local.get("apiKey", async (data) => {
+            const API_KEY = data.apiKey;
+            if (!API_KEY) {
+                console.error("❌ Safe Browsing API Key is missing.");
+                return false;
+            }
+
+            const response = await fetch(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${API_KEY}`, {
+                method: "POST",
+                body: JSON.stringify({
+                    client: { clientId: "SafeBrowsingGuard", clientVersion: "1.0" },
+                    threatInfo: {
+                        threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE"],
+                        platformTypes: ["ANY_PLATFORM"],
+                        threatEntryTypes: ["URL"],
+                        threatEntries: [{ url }]
+                    }
+                }),
+                headers: { "Content-Type": "application/json" }
+            });
+
+            if (!response.ok) {
+                console.error("🔴 Safe Browsing API request failed:", response.status);
+                return false;
+            }
+
+            const result = await response.json();
+            return result.matches ? true : false;
+        });
+    } catch (error) {
+        console.error("❌ Error checking URL:", error);
+        return false;
+    }
+}
+
+// Function to check Ethereum address on Etherscan
+async function checkEthereumAddress(address) {
+    try {
+        const url = `https://api.scamsniffer.io/v1/check/${address}`;
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            console.error("❌ Error fetching Scam Sniffer API:", response.statusText);
+            return;
+        }
+
+        const result = await response.json();
+        console.log("+++++",result);
+
+        if (result.found && result.entries.length > 0) {
+            console.log(`🚫 Address flagged as suspicious on Scam Sniffer: ${address}`);
+            blockThreat(address);
+        } else {
+            console.log(`🟢 Address not flagged on Scam Sniffer: ${address}`);
+            if (typeof checkScamAddress === "function") {
+                await checkScamAddress(address);
+            } else {
+                console.warn("⚠️ checkScamAddress function is not defined.");
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error checking Ethereum address:", error);
+    }
+}
+
+
+
+
+
+
+
+// Function to block a detected threat
+function blockThreat(urlOrAddress) {
+    chrome.storage.local.get("blockedUrls", (data) => {
+        let blockedUrls = data.blockedUrls || [];
+        if (!blockedUrls.includes(urlOrAddress)) {
+            blockedUrls.push(urlOrAddress);
+            chrome.storage.local.set({ blockedUrls });
+        }
+    });
+
+    updateBadgeCount();
+
+    chrome.runtime.sendMessage({ action: "blockedSite", url: urlOrAddress });
+    chrome.runtime.sendMessage({ action: "playSound" });
+
+    chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icon.png",
+        title: "⚠️ Malicious Activity Detected!",
+        message: `A threat has been detected: ${urlOrAddress}`,
+        priority: 2
+    });
+}
+
+// Extract Ethereum addresses from the active page
+chrome.tabs.onUpdated.addListener((tabId,changeInfo, tab) => {
+    if(changeInfo.status === 'complete') {
+        console.log(`Tab ${tabId} has finished loading`);
+        chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: extractEthereumAddresses
+        });
+    }
+});
+
+function extractEthereumAddresses() {
+    const regex = /0x[a-fA-F0-9]{40}/g;
+    const h1Elements = document.querySelectorAll('h1');
+    const h1Content = document.body.innerText
+    
+    // const regex = /.*/g;
+
+    const matches = document.body.innerText.match(regex);
+    console.log('++++',matches);
+    // if (matches) {
+    //     matches.forEach(address => {
+    //         chrome.runtime.sendMessage({ action: "checkEthereumAddress", address:address });
+    //     });
+    // }
+   
+    chrome.runtime.sendMessage({ 
+        action: "checkEthereumAddress",
+        matches: matches });
+     }
+
+// Listen for Ethereum address check requests
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "checkEthereumAddress") {
+        console.log('----->',request.matches[0]);
+        checkEthereumAddress(request.matches);
+    }
+    else{
+        console.log('NOT MATCHING'); 
+    }
+       
+});
+
+// Reset badge count when the extension starts
+chrome.runtime.onStartup.addListener(() => {
+    chrome.storage.local.set({ blockedCount: 0 });
+    chrome.action.setBadgeText({ text: "" });
+});
